@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Inkingi Edu – School Fee Payment</title>
+  <link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+  <header><h1>Inkingi Edu</h1></header>
+
+  <main>
+    <form id="payment-form">
+      <h2>Enroll Your Child</h2>
+      <label>
+        Child's Name:
+        <input type="text" name="childName" required/>
+      </label>
+      <label>
+        School:
+        <input type="text" name="school" required/>
+      </label>
+      <label>
+        Class/Grade:
+        <input type="text" name="grade" required/>
+      </label>
+      <label>
+        Fee Amount (RWF):
+        <input type="number" name="amount" min="1000" required/>
+      </label>
+      <label>
+        Payment Method:
+        <select name="paymentMethod" id="paymentMethod" required>
+          <option value="">Select...</option>
+          <option value="mtmomo">MTN MoMo (USSD/App)</option>
+          <option value="airtelmomo">Airtel Money (USSD/App)</option>
+          <option value="card">Visa / Mastercard</option>
+          <option value="gateway">Local Payment Gateway</option>
+        </select>
+      </label>
+
+      <!-- Conditional Fields -->
+      <div id="mobile-fields" class="hidden">
+        <label>
+          Phone Number:
+          <input type="tel" name="phone" placeholder="e.g. 0788123456"/>
+        </label>
+      </div>
+
+      <div id="card-fields" class="hidden">
+        <label>Card Number: <input type="text" name="cardNumber" maxlength="19"/></label>
+        <label>Expiry: <input type="text" name="expiry" placeholder="MM/YY"/></label>
+        <label>CVC: <input type="text" name="cvc" maxlength="4"/></label>
+      </div>
+
+      <button type="submit">Generate Payment Code</button>
+    </form>
+
+    <section id="result"></section>
+  </main>
+
+  <script src="scripts.js"></script>
+</body>
+</html>
+body { font-family: Arial, sans-serif; padding: 20px; background: #f9f9f9; }
+header { text-align: center; margin-bottom: 20px; }
+form label { display: block; margin: 10px 0; }
+.hidden { display: none; }
+button { padding: 10px 20px; background: #0a5; color: white; border: none; cursor: pointer; }
+#result { margin-top: 20px; padding: 10px; background: #e3ffe3; }
+document.getElementById('paymentMethod')
+  .addEventListener('change', function () {
+    const m = this.value;
+    document.getElementById('mobile-fields').classList.toggle('hidden', !['mtmomo','airtelmomo','gateway'].includes(m));
+    document.getElementById('card-fields').classList.toggle('hidden', m !== 'card');
+  });
+
+document.getElementById('payment-form')
+  .addEventListener('submit', function (e) {
+    e.preventDefault();
+    const f = new FormData(this);
+    const data = Object.fromEntries(f.entries());
+    // Simple code: SCHOOL-GRADE-XXXX
+    const code = `${data.school.toUpperCase().slice(0,3)}-${data.grade}-${Math.floor(1000+Math.random()*9000)}`;
+    document.getElementById('result').innerHTML = `
+      <h3>Payment Code</h3>
+      <p><strong>${code}</strong></p>
+      <p>Use this code via your selected method:</p>
+      <ul>
+        ${data.paymentMethod === 'mtmomo' || data.paymentMethod === 'airtelmomo'
+          ? `<li>Dial USSD and enter code: <strong>${code}</strong>.</li>`
+          : ''}
+        ${data.paymentMethod === 'card'
+          ? `<li>Proceed with card ending •••• ${data.cardNumber.slice(-4)}</li>`
+          : ''}
+        ${data.paymentMethod === 'gateway'
+          ? `<li>You'll be redirected to our payment gateway shortly.</li>`
+          : ''}
+      </ul>`;
+  });
+require('dotenv').config();
+const express = require('express');
+const { processPayment } = require('mtn-momo-sdk');
+
+const app = express();
+app.use(express.json());
+
+app.post('/api/pay/momo', async (req, res) => {
+  const { phone, amount, externalId } = req.body;
+  try {
+    const result = await processPayment(amount, phone, externalId);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+import { DPOPayment } from "@kazion/dpopay-sdk";
+
+const dpo = new DPOPayment({ companyToken: process.env.DPO_TOKEN });
+
+app.post('/api/pay/dpo', async (req, res) => {
+  const payload = { /* include payment, customer fields, redirect/back URLs */ };
+  const response = await dpo.initiatePayment(payload);
+  res.json(response);
+});
+{
+  childName,
+  school,
+  grade,
+  totalAmount,
+  installments: [
+    { dueDate, amount, status: 'pending'|'paid' }
+  ],
+}
+const twilioClient = require('twilio')(sid, token);
+twilioClient.messages.create({
+  from: TWILIO_NUMBER,
+  to: parentPhone,
+  body: `Reminder: Your next school fee payment of RWF ${amount} is due on ${dueDate}.`
+});
